@@ -89,6 +89,9 @@ with st.sidebar:
     )
     pdf_files = st.file_uploader("Upload your chapter PDFs", type="pdf", accept_multiple_files=True)
     generate_button = st.button("Generate Notes", type="primary")
+    cancel_all_button = st.button("Cancel All Generations", type="secondary")
+    download_all_markdown_button = st.button("Download All Notes as Markdown", type="secondary")
+    download_all_pdf_button = st.button("Download All Notes as PDF", type="secondary")
 
 # --- Main Application Logic ---
 if 'files' not in st.session_state:
@@ -110,6 +113,33 @@ if generate_button:
                     "file": pdf_file,
                     "cancelled": False
                 }
+
+if cancel_all_button:
+    for file_name in st.session_state.files:
+        st.session_state.files[file_name]["cancelled"] = True
+        st.session_state.files[file_name]["status"] = "Cancelled"
+    st.rerun()
+
+if download_all_markdown_button:
+    all_notes_markdown = ""
+    for file_name, file_data in st.session_state.files.items():
+        if file_data["status"] == "Completed" and file_data["notes"]:
+            all_notes_markdown += f"# Notes for {file_name.replace('.pdf', '')}\n\n"
+            all_notes_markdown += file_data["notes"]
+            all_notes_markdown += "\n\n---\n\n"
+    if all_notes_markdown:
+        st.download_button(
+            label="Download All Notes as Markdown",
+            data=all_notes_markdown,
+            file_name="all_ncert_notes.md",
+            mime="text/markdown",
+            key="download_all_md"
+        )
+    else:
+        st.warning("No completed notes to download as Markdown.")
+
+if download_all_pdf_button:
+    st.warning("Merging PDFs is not yet supported. Please download individual PDFs.")
 
 if any(st.session_state.files):
     
