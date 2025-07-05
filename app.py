@@ -107,7 +107,8 @@ if generate_button:
                 st.session_state.files[pdf_file.name] = {
                     "status": "In Queue",
                     "notes": None,
-                    "file": pdf_file
+                    "file": pdf_file,
+                    "cancelled": False
                 }
 
 if any(st.session_state.files):
@@ -129,7 +130,15 @@ if any(st.session_state.files):
     for i, (file_name, file_data) in enumerate(st.session_state.files.items()):
         with tabs[i]:
             st.header(file_name)
-            st.write(f"Status: {file_data['status']}")
+            col1, col2 = st.columns([0.7, 0.3])
+            with col1:
+                st.write(f"Status: {file_data['status']}")
+            with col2:
+                if file_data["status"] in ["In Queue", "Processing"]:
+                    if st.button("Cancel", key=f"cancel_{file_name}"):
+                        st.session_state.files[file_name]["cancelled"] = True
+                        st.session_state.files[file_name]["status"] = "Cancelled"
+                        st.rerun()
 
             if file_data["status"] == "Completed" and file_data["notes"]:
                 st.markdown(file_data["notes"])
@@ -148,6 +157,8 @@ if any(st.session_state.files):
                 )
             elif file_data["status"] == "Failed":
                 st.error("Note generation failed for this file. Please check the logs or try again.")
+            elif file_data["status"] == "Cancelled":
+                st.warning("Note generation for this file has been cancelled.")
 
     processing_file = None
     for file_name, file_data in st.session_state.files.items():
@@ -163,20 +174,33 @@ if any(st.session_state.files):
                 break
 
     if processing_file:
-        with st.spinner(f"Processing {processing_file}..."):
-            pdf_file = st.session_state.files[processing_file]["file"]
-            chapter_text = extract_text_from_pdf(pdf_file)
-            if chapter_text:
-                notes = generate_notes_with_gemini(api_key, chapter_text, user_prompt)
-                st.session_state.files[processing_file]["notes"] = notes
-                if notes:
-                    st.session_state.files[processing_file]["status"] = "Completed"
+        if st.session_state.files[processing_file]["cancelled"]:
+            st.session_state.files[processing_file]["status"] = "Cancelled"
+            st.rerun()
+        else:
+            with st.spinner(f"Processing {processing_file}..."):
+                pdf_file = st.session_state.files[processing_file]["file"]
+                chapter_text = extract_text_from_pdf(pdf_file)
+                
+                if st.session_state.files[processing_file]["cancelled"]:
+                    st.session_state.files[processing_file]["status"] = "Cancelled"
+                    st.rerun()
+                elif chapter_text:
+                    notes = generate_notes_with_gemini(api_key, chapter_text, user_prompt)
+                    
+                    if st.session_state.files[processing_file]["cancelled"]:
+                        st.session_state.files[processing_file]["status"] = "Cancelled"
+                        st.rerun()
+                    else:
+                        st.session_state.files[processing_file]["notes"] = notes
+                        if notes:
+                            st.session_state.files[processing_file]["status"] = "Completed"
+                        else:
+                            st.session_state.files[processing_file]["status"] = "Failed"
+                        st.rerun()
                 else:
+                    st.session_state.files[processing_file]["notes"] = None
                     st.session_state.files[processing_file]["status"] = "Failed"
-                st.rerun()
-            else:
-                st.session_state.files[processing_file]["notes"] = None
-                st.session_state.files[processing_file]["status"] = "Failed"
-                st.rerun()
+                    st.rerun()
 else:
     st.info("Please provide your API key, prompt, and upload PDFs in the sidebar to get started.")
