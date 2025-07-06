@@ -3,7 +3,7 @@ import google.generativeai as genai
 import fitz  # PyMuPDF
 import os
 from markdown_it import MarkdownIt
-from weasyprint import HTML
+from weasyprint import HTML, CSS
 import time
 
 # --- Streamlit Page Configuration ---
@@ -19,10 +19,38 @@ def markdown_to_pdf_bytes(markdown_text: str) -> bytes:
     """
     Converts a Markdown string to a PDF and returns it as bytes.
     """
-    md = MarkdownIt()
+    md = MarkdownIt('commonmark', {'breaks': True, 'html': True}).enable('table')
     html_content = md.render(markdown_text)
+
+    # Basic CSS for table styling
+    css_style = '''
+    @page {
+        size: A4;
+        margin: 1in;
+    }
+    body {
+        font-family: sans-serif;
+        font-size: 12px;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1em;
+    }
+    th, td {
+        border: 1px solid #dddddd;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+        font-weight: bold;
+    }
+    '''
+
     html = HTML(string=html_content)
-    pdf_bytes = html.write_pdf()
+    css = CSS(string=css_style)
+    pdf_bytes = html.write_pdf(stylesheets=[css])
     return pdf_bytes
 
 def extract_text_from_pdf(pdf_file):
@@ -79,13 +107,25 @@ with st.sidebar:
     user_prompt = st.text_area(
         "Enter your prompt for the notes generation (don't change anything if you are a normal user):",
         height=200,
-        value='''You are an expert at creating concise and easy-to-understand study notes from complex academic texts. Based on the following text from an NCERT chapter, generate comprehensive study notes in Markdown format. Your notes must strictly follow these rules:
-1. Main Title: Start with a single Level 1 Heading (`#`) for the chapter's main theme.
-2. Topics & Sub-topics: Use Level 2 (`##`) and Level 3 (`###`) headings to structure the main topics and sub-topics logically.
-3. Key Terms: Bold all important keywords, definitions, and names using `**Term**`.
-4. Lists: Use bullet points (`*`) for important facts, features, characteristics, or steps.
-5. Definitions: Enclose critical definitions or important statements in blockquotes (`>`).
-6. Clarity: Ensure the language is simple, clear, and optimized for student revision. Do not include any conversational text or introductions like 'Here are the notes...'. The output must be pure Markdown.'''
+        value="""
+Convert the following academic content into clear, structured study notes.
+
+    Use precise and simplified language appropriate for learners at any level.
+
+    Include all relevant facts, definitions, concepts, formulas, examples, and data.
+
+    Use proper headings, subheadings, bullet points, and numbered lists.
+
+    Avoid introductory or concluding phrases like "Here are your notes" or "In summary."
+
+    Exclude all conversational language, metaphors, analogies, and storytelling.
+
+    Notes must be comprehensive, self-contained, and formatted in clean Markdown.
+
+    Do not skip technical details or simplify at the cost of accuracy.
+"""
+
+
     )
     pdf_files = st.file_uploader("Upload your chapter PDFs", type="pdf", accept_multiple_files=True)
     generate_button = st.button("Generate Notes", type="primary")
