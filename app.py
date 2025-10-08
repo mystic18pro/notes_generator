@@ -2,6 +2,10 @@ import streamlit as st
 import google.generativeai as genai
 import fitz  # PyMuPDF
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from markdown_it import MarkdownIt
 from weasyprint import HTML, CSS
 import time
@@ -68,7 +72,7 @@ def extract_text_from_pdf(pdf_file):
         st.error(f"Error reading the PDF file: {e}")
         return None
 
-def generate_notes_with_gemini(api_key, chapter_text, user_prompt):
+def generate_notes_with_gemini(api_key, chapter_text, user_prompt,model_name):
     """
     Generates study notes from text using the Google Gemini Pro model.
     """
@@ -83,7 +87,7 @@ Here is the chapter text:
 {chapter_text}
 ---
 """
-        model = genai.GenerativeModel('gemini-2.5-pro')
+        model = genai.GenerativeModel(model_name)
         response = model.generate_content(prompt_template)
 
         return response.text
@@ -102,27 +106,18 @@ with st.sidebar:
     api_key = st.text_input(
         "Enter your Google AI Studio API Key:",
         type="password",
+        value=os.getenv("GOOGLE_API_KEY"),
         help="Get your key from [Google AI Studio](https://aistudio.google.com/app/apikey)"
+    )
+    model_name = st.selectbox(
+        "Select the Gemini model:",
+        ("gemini-2.5-flash", "gemini-2.5-pro")
     )
     user_prompt = st.text_area(
         "Enter your prompt for the notes generation (don't change anything if you are a normal user):",
         height=200,
         value="""
-Convert the following academic content into clear, structured study notes.
-
-    Use precise and simplified language appropriate for learners at any level.
-
-    Include all relevant facts, definitions, concepts, formulas, examples, and data.
-
-    Use proper headings, subheadings, bullet points, and numbered lists.
-
-    Avoid introductory or concluding phrases like "Here are your notes" or "In summary."
-
-    Exclude all conversational language, metaphors, analogies, and storytelling.
-
-    Notes must be comprehensive, self-contained, and formatted in clean Markdown.
-
-    Do not skip technical details or simplify at the cost of accuracy.
+Convert the following academic content into comprehensive, structured study notes.  Use precise and simplified language that makes concepts clear for learners at any level.  Include all relevant facts, definitions, concepts, formulas, examples, data, and processes.  Organize using headings, subheadings, numbered lists, and bullet points.  Ensure notes are self-contained and can be studied without the original text.  Maintain accuracy and technical detail; do not oversimplify.  Exclude all conversational language, metaphors, analogies, or storytelling.  Do not add introductions or conclusions.  Format in clean Markdown.
 """
 
 
@@ -256,7 +251,7 @@ if any(st.session_state.files):
                     st.session_state.files[processing_file]["status"] = "Cancelled"
                     st.rerun()
                 elif chapter_text:
-                    notes = generate_notes_with_gemini(api_key, chapter_text, user_prompt)
+                    notes = generate_notes_with_gemini(api_key, chapter_text, user_prompt, model_name)
                     
                     if st.session_state.files[processing_file]["cancelled"]:
                         st.session_state.files[processing_file]["status"] = "Cancelled"
