@@ -4,6 +4,3 @@ PymuPDF
 weasyprint
 Markdown-It-Py
 python-dotenv
-libpango
-libpangocairo
-libgtk

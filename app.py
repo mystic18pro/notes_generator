@@ -204,6 +204,11 @@ if any(st.session_state.files):
                         st.session_state.files[file_name]["cancelled"] = True
                         st.session_state.files[file_name]["status"] = "Cancelled"
                         st.rerun()
+                if file_data["status"] in ["Completed", "Failed"]:
+                    if st.button("Regenerate", key=f"regenerate_{file_name}"):
+                        st.session_state.files[file_name]["status"] = "In Queue"
+                        st.session_state.files[file_name]["notes"] = None
+                        st.rerun()
 
             if file_data["status"] == "Completed" and file_data["notes"]:
                 st.markdown(file_data["notes"])
